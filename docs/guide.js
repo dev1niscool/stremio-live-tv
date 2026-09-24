@@ -10,7 +10,7 @@ function selectTab(id, focus = false) {
     if (selected && focus) tab.focus();
   }
 }
-function route() {selectTab(!location.hash || ['#ready','#ready-playlists'].includes(location.hash) ? 'ready' : 'self-host');}
+function route() {selectTab(['#ready','#ready-playlists'].includes(location.hash) ? 'ready' : 'self-host');}
 for (const [i,tab] of tabs.entries()) {
   tab.addEventListener('click',()=>{const id=tab.getAttribute('aria-controls');history.replaceState(null,'',`#${id}`);selectTab(id);});
   tab.addEventListener('keydown',event=>{
@@ -22,14 +22,24 @@ for (const [i,tab] of tabs.entries()) {
 }
 window.addEventListener('hashchange',route);route();
 mountAwake($('#guide-awake'));
-$('[data-service-url]').addEventListener('input',()=>{
+function updateServiceLink() {
   try {
     const url = new URL($('[data-service-url]').value.trim());
     if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error();
     $('#open-service').href = url.origin;
     $('#open-service').removeAttribute('aria-disabled');
-  } catch {$('#open-service').removeAttribute('href');$('#open-service').setAttribute('aria-disabled','true');}
+    $('#open-service').removeAttribute('tabindex');
+  } catch {
+    $('#open-service').removeAttribute('href');
+    $('#open-service').setAttribute('aria-disabled','true');
+    $('#open-service').setAttribute('tabindex','-1');
+  }
+}
+$('[data-service-url]').addEventListener('input',updateServiceLink);
+$('#open-service').addEventListener('click',event=>{
+  if ($('#open-service').getAttribute('aria-disabled') === 'true') event.preventDefault();
 });
+updateServiceLink();
 let sources = [];
 function updateOutput() {$('#ready-json').value = JSON.stringify(sources,null,2);$('#ready-copy-status').textContent='';}
 function renderSources() {

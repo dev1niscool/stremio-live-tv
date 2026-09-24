@@ -6,7 +6,7 @@ Each playlist keeps its original Discover list. Sources with XMLTV also supply S
 
 **[Read the illustrated setup guide](https://dev1niscool.github.io/stremio-live-tv/)** · **[Deploy on Render](https://render.com/deploy?repo=https://github.com/dev1niscool/stremio-live-tv)**
 
-Already hosting the add-on? Open the guide's **[existing-host tools](https://dev1niscool.github.io/stremio-live-tv/#ready)** to prepare updated settings or wake your service. Keep using the same service and access key.
+The public guide opens with **Set up your own** instructions. Already hosting the add-on? Open its **[Already set up tools](https://dev1niscool.github.io/stremio-live-tv/#ready)** and enter your own service address to prepare updated settings or wake your service. Keep using the same service and access key.
 
 ## Host your own on Render Free
 
