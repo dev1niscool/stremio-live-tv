@@ -1,0 +1,9 @@
+[
+  {
+    "id": "my-provider",
+    "name": "My provider",
+    "url": "https://provider.example/get.php?username=YOUR_USERNAME&password=YOUR_PASSWORD&type=m3u_plus&output=ts",
+    "includeGroups": [],
+    "excludeGroups": []
+  }
+]

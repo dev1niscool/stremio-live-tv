@@ -1,0 +1,18 @@
+# Creates one Free web service. No database, disk, or paid service is needed.
+services:
+  - type: web
+    name: stremio-live-tv
+    runtime: node
+    plan: free
+    buildCommand: node --check src/server.mjs
+    startCommand: node src/server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: ADDON_TOKEN
+        generateValue: true
+      - key: PLAYLISTS_JSON
+        sync: false

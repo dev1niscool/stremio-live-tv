@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Set up your private live television add-on for Stremio.">
+  <meta name="referrer" content="no-referrer">
+  <title>Stremio Live TV · Setup</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css"><script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><img src="./icon.svg" width="34" height="34" alt="">Stremio <strong>Live TV</strong></a><nav><a href="https://dev1niscool.github.io/stremio-live-tv/">Setup guide</a><a href="https://github.com/dev1niscool/stremio-live-tv">GitHub <span aria-hidden="true">↗</span></a></nav></header>
+  <main>
+    <div class="page-heading"><div><p class="eyebrow">YOUR CHANNELS. YOUR ADD-ON.</p><h1>A little more live.</h1><p class="intro">Bring your playlists into Stremio’s Discover tab.<br>One place for live TV. A separate list for every source.</p></div><div class="route-preview" aria-label="Stremio navigation"><span>Discover</span><span aria-hidden="true">/</span><strong>Live TV</strong><span aria-hidden="true">/</span><span>Your playlist</span></div></div>
+    <div class="workspace">
+      <section class="panel setup-panel" aria-labelledby="setup-title">
+        <div class="section-top"><span class="step">01</span><div><h2 id="setup-title">Build your channel list</h2><p>Add an M3U URL for each playlist you want to browse.</p></div></div>
+        <form id="setup-form">
+          <div id="sources"></div>
+          <button type="button" class="add-button" id="add-source"><span aria-hidden="true">＋</span> Add another playlist</button>
+          <p class="privacy-note">Your links stay in this browser until you copy them into your host’s private environment settings. This page never uploads or saves them.</p>
+          <button class="button primary" type="submit">Generate private settings <span aria-hidden="true">↗</span></button>
+          <p id="setup-message" role="status" class="message"></p>
+        </form>
+        <div id="settings-output" hidden>
+          <div class="output-heading"><h3>Your private settings</h3><span class="pill">KEEP PRIVATE</span></div>
+          <p>In Render, open your service → <strong>Environment</strong>. Add these two values, then choose <strong>Save, rebuild, and deploy</strong>.</p>
+          <label for="json-output">PLAYLISTS_JSON</label><textarea id="json-output" rows="6" readonly spellcheck="false" aria-describedby="secret-note"></textarea>
+          <button type="button" class="button secondary small" data-copy="json-output">Copy playlist settings</button>
+          <label for="token-output">ADDON_TOKEN</label><input id="token-output" type="password" readonly autocomplete="off">
+          <button type="button" class="button secondary small" data-copy="token-output">Copy access key</button>
+          <p id="secret-note" class="subtle">Keep the access key in your password manager. Anyone with the install link can access your channels and playback URLs. Updating playlists? Keep your existing key so you don’t need to reinstall.</p>
+          <p id="copy-message" role="status" class="message"></p>
+        </div>
+      </section>
+      <aside class="install-column">
+        <section class="panel install-panel" aria-labelledby="install-title">
+          <div class="section-top"><span class="step">02</span><div><h2 id="install-title">Connect to Stremio</h2><p>Once your host has saved the settings, enter your access key.</p></div></div>
+          <p class="service-status" id="service-state">Checking service…</p>
+          <form id="connect-form"><label for="access-key">Your access key</label><input id="access-key" type="password" placeholder="Paste ADDON_TOKEN" required minlength="32" autocomplete="off"><button class="button secondary full" type="submit" id="connect-button">Check my playlists</button></form>
+          <p id="connect-message" class="message" role="status"></p>
+          <div id="install-output" hidden><a id="install-link" class="button primary full" href="#">Install in Stremio <span aria-hidden="true">↗</span></a><label for="manifest-url">Or paste this URL into Stremio → Add-ons</label><input type="password" id="manifest-url" readonly autocomplete="off"><button type="button" class="button secondary small" data-copy="manifest-url">Copy install URL</button></div>
+        </section>
+        <section class="how-it-works"><p class="eyebrow">MADE FOR DISCOVER</p><h3>Live TV, without the clutter.</h3><ul><li><strong>Choose a playlist</strong><span>Each source becomes its own list under Live TV.</span></li><li><strong>Keep Home as it is</strong><span>These channel lists only appear in Discover.</span></li><li><strong>Leave VOD behind</strong><span>Movies, series, and entries without a clear live signal are filtered out.</span></li></ul><p class="subtle">A mislabeled playlist can’t be classified perfectly. Confirm exact live group names below a source if genuine channels are missing.</p></section>
+      </aside>
+    </div>
+    <section id="playlist-status" class="panel status-panel" hidden aria-labelledby="status-title"><div class="section-top"><div><h2 id="status-title">Your playlists</h2><p>Counts reflect the live-only filter.</p></div><button id="refresh" class="button secondary small">Refresh playlists</button></div><div id="status-list"></div></section>
+  </main>
+  <footer><span>Independent, open-source add-on. Not affiliated with Stremio.</span><a href="https://dev1niscool.github.io/stremio-live-tv/#troubleshooting">Need a hand?</a></footer>
+  <template id="source-template"><div class="source-card"><div class="source-header"><span class="source-number"></span><button type="button" class="remove-source" aria-label="Remove playlist">Remove</button></div><label class="name-label">Playlist name<input class="source-name" required maxlength="80" placeholder="e.g. My TV provider" autocomplete="off"></label><label>M3U playlist URL<input class="source-url" type="password" required placeholder="https://provider.example/playlist.m3u" autocomplete="off" spellcheck="false"></label><details><summary>Live channel filtering</summary><p>Only add groups you know contain live channels. Exact group names, one per line. Movies and series remain blocked.</p><label>Confirmed live groups (optional)<textarea class="include-groups" rows="2" placeholder="US | Entertainment&#10;UK | Sports"></textarea></label><label>Groups to exclude (optional)<textarea class="exclude-groups" rows="2" placeholder="Unwanted group"></textarea></label></details></div></template>
+</body>
+</html>

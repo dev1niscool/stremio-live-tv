@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.DS_Store
+coverage/
+*.log
+playlists*.json
+!playlists.example.json
+.private/
