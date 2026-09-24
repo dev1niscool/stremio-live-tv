@@ -1,5 +1,6 @@
 import {mountImport} from './import-ui.mjs';
-import {mountAwake} from './awake.mjs';
+import {mountAwake} from './awake.mjs?v=1.2.1';
+import {normalizeServiceUrl} from './service-url.mjs';
 const $ = selector => document.querySelector(selector);
 const tabs = [...document.querySelectorAll('[role=tab]')];
 function selectTab(id, focus = false) {
@@ -24,9 +25,7 @@ window.addEventListener('hashchange',route);route();
 mountAwake($('#guide-awake'));
 function updateServiceLink() {
   try {
-    const url = new URL($('[data-service-url]').value.trim());
-    if (!['http:','https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error();
-    $('#open-service').href = url.origin;
+    $('#open-service').href = normalizeServiceUrl($('[data-service-url]').value,{pageOrigin:location.origin});
     $('#open-service').removeAttribute('aria-disabled');
     $('#open-service').removeAttribute('tabindex');
   } catch {

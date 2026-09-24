@@ -1,6 +1,6 @@
 import {sourceFromUrl} from './importer.mjs';
 import {mountImport} from './import-ui.mjs';
-import {mountAwake} from './awake.mjs';
+import {mountAwake} from './awake.mjs?v=1.2.1';
 
 const $ = selector => document.querySelector(selector);
 let sourceSequence = 0;
@@ -41,7 +41,7 @@ function addSource(source) {
 function invalidateOutput() { $('#settings-output').hidden = true; }
 $('#add-source').addEventListener('click', () => addSource());
 addSource();
-mountAwake($('#service-awake'),{defaultUrl:location.origin});
+mountAwake($('#service-awake'),{defaultUrl:location.origin,sameOriginOnly:true});
 mountImport($('#playlist-import'),sources=>{
   for (const row of [...$('#sources').children]) if (!row.querySelector('.source-url').value.trim() && !row.querySelector('.source-name').value.trim()) row.remove();
   const ids = new Set([...$('#sources').children].map(row=>row.dataset.sourceId));

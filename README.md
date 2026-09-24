@@ -25,9 +25,9 @@ The included `render.yaml` also supports Blueprint deployment. It creates only a
 
 ### Keep the service ready while watching
 
-Use **Wake now** on your service page or the guide's **[existing-host tab](https://dev1niscool.github.io/stremio-live-tv/#ready)**. Enter only the public service origin, such as `https://YOUR-SERVICE.onrender.com`; no access key is needed for the health check.
+Use **Wake now** on your service page or the guide's **[existing-host tab](https://dev1niscool.github.io/stremio-live-tv/#ready)**. Enter only the public service origin, such as `https://YOUR-SERVICE.onrender.com`; no access key is needed for the health check. Bare hostnames and HTTP Render addresses are corrected to HTTPS. Do not use a dashboard URL or Stremio install link. The service page wakes its own instance; the public guide can wake the service address you enter.
 
-**Keep awake while watching** starts a finite browser session of 1, 2, 4, or 8 hours. It requests `/health` approximately every four minutes and stops when the session expires, you press **Stop**, or you leave the page. Keep the browser and device running: suspended tabs, device sleep and lost connectivity can interrupt checks. This is not a guarantee of continuous hosting, and it uses your normal Render running-hour allowance. There is no server self-ping or background scheduler. A direct IPTV stream usually continues if the add-on service sleeps; loading another channel or refreshing its guide may need the service to wake again.
+**Keep awake while watching** starts a finite browser session of 1, 2, 4, or 8 hours. Temporary network errors and Render loading responses are retried for up to 90 seconds; only a successful health response is reported as awake. It requests `/health` approximately every four minutes and stops when the session expires, you press **Stop**, or you leave the page. Keep the browser and device running: suspended tabs, device sleep and lost connectivity can interrupt checks. This is not a guarantee of continuous hosting, and it uses your normal Render running-hour allowance. There is no server self-ping or background scheduler. A direct IPTV stream usually continues if the add-on service sleeps; loading another channel or refreshing its guide may need the service to wake again.
 
 ## Private configuration
 

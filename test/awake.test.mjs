@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mountAwake } from '../public/awake.mjs';
 
 const FOUR_MINUTES = 4 * 60 * 1000;
+const RECOVERY_DELAY = 5000;
 const ONE_HOUR = 60 * 60 * 1000;
 const START_TIME = Date.UTC(2026, 0, 1, 12);
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -29,7 +30,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-const healthy = () => ({ ok: true, json: async () => ({ status: 'ok' }) });
+const healthy = () => ({ ok: true, status: 200, json: async () => ({ status: 'ok' }) });
 
 function setup(context, implementation = async () => healthy(), options = {}) {
   context.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: START_TIME });
@@ -41,6 +42,7 @@ function setup(context, implementation = async () => healthy(), options = {}) {
   const document = new EventTarget();
   document.visibilityState = 'visible';
   const window = new EventTarget();
+  window.location = { origin: 'https://television.example.test' };
   const previousGlobals = new Map(['document', 'window'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   Object.defineProperty(globalThis, 'document', { configurable: true, value: document });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: window });
@@ -74,6 +76,7 @@ test('mount is idle; a user wake sends one GET to health without provider URLs, 
   assert.equal(request.searchParams.get('wake'), String(START_TIME));
   assert.equal(calls[0].init.method ?? 'GET', 'GET');
   assert.equal(calls[0].init.cache, 'no-store');
+  assert.equal(calls[0].init.credentials, 'omit');
   assert.equal(calls[0].init.body, undefined);
   assert.equal(calls[0].init.headers, undefined);
   assert.ok(calls[0].init.signal instanceof AbortSignal);
@@ -241,29 +244,199 @@ test('a request failing after the session deadline ends the session without a re
   assert.equal(calls.length, 2);
 });
 
-test('unhealthy responses and fetch failures show errors, then a scheduled retry can recover', async (context) => {
+test('a temporary network error retries after five seconds without exposing raw browser errors', async (context) => {
   const { elements, calls } = setup(context, async (_call, index) => {
-    if (index === 1) return { ok: false, json: async () => ({ status: 'ok' }) };
-    if (index === 2) throw new Error('The network is unavailable.');
-    if (index === 3) return { ok: true, json: async () => ({ status: 'starting' }) };
+    if (index === 1) throw new TypeError('Load failed');
     return healthy();
+  });
+  elements.wake.click();
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.match(elements['wake-status'].textContent, /starting|unreachable/i);
+  assert.match(elements['wake-status'].textContent, /retrying/i);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Load failed|Service awake/);
+  assert.equal(elements.wake.disabled, true);
+  context.mock.timers.tick(RECOVERY_DELAY - 1);
+  await settle();
+  assert.equal(calls.length, 1);
+  context.mock.timers.tick(1);
+  await settle();
+  assert.equal(calls.length, 2);
+  assert.match(elements['wake-status'].textContent, /Service awake/);
+  assert.equal(elements['wake-status'].classList.contains('error'), false);
+  assert.equal(elements.wake.disabled, false);
+  context.mock.timers.tick(FOUR_MINUTES);
+  await settle();
+  assert.equal(calls.length, 2, 'recovering a one-time wake must not start an awake session');
+});
+
+for (const status of [503, 429]) {
+  test(`a temporary HTTP ${status} response retries until the real health endpoint is ready`, async (context) => {
+    const { elements, calls } = setup(context, async (_call, index) => index === 1
+      ? { ok: false, status, json: async () => ({ status: 'starting' }) } : healthy());
+    elements.wake.click();
+    await settle();
+    assert.match(elements['wake-status'].textContent, /retrying/i);
+    assert.doesNotMatch(elements['wake-status'].textContent, /Service awake/);
+    context.mock.timers.tick(RECOVERY_DELAY);
+    await settle();
+    assert.equal(calls.length, 2);
+    assert.match(elements['wake-status'].textContent, /Service awake/);
+    assert.equal(elements['wake-status'].classList.contains('error'), false);
+  });
+}
+
+test('a non-JSON platform loading page is retried and never mistaken for a healthy service', async (context) => {
+  const { elements, calls } = setup(context, async (_call, index) => index === 1
+    ? { ok: true, status: 200, json: async () => { throw new SyntaxError('Unexpected token < in platform loading HTML'); } }
+    : healthy());
+  elements.wake.click();
+  await settle();
+  assert.match(elements['wake-status'].textContent, /retrying/i);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Unexpected token|Service awake/);
+  context.mock.timers.tick(RECOVERY_DELAY);
+  await settle();
+  assert.equal(calls.length, 2);
+  assert.match(elements['wake-status'].textContent, /Service awake/);
+});
+
+test('a JSON starting response retries until health explicitly reports ok', async (context) => {
+  const { elements, calls } = setup(context, async (_call, index) => index === 1
+    ? { ok: true, status: 200, json: async () => ({ status: 'starting' }) } : healthy());
+  elements.wake.click();
+  await settle();
+  assert.match(elements['wake-status'].textContent, /retrying/i);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Service awake/);
+  context.mock.timers.tick(RECOVERY_DELAY);
+  await settle();
+  assert.equal(calls.length, 2);
+  assert.match(elements['wake-status'].textContent, /Service awake/);
+});
+
+test('a terminal 404 gives an actionable wrong-address error with no automatic retry', async (context) => {
+  const { elements, calls } = setup(context, async () => ({ ok: false, status: 404, json: async () => ({ status: 'ok' }) }));
+  elements.wake.click();
+  await settle();
+  assert.match(elements['wake-status'].textContent, /address/i);
+  assert.match(elements['wake-status'].textContent, /health check/i);
+  assert.equal(elements['wake-status'].classList.contains('error'), true);
+  assert.equal(elements.wake.disabled, false);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Service awake|retrying/i);
+  context.mock.timers.tick(90000);
+  await settle();
+  assert.equal(calls.length, 1);
+});
+
+test('repeated temporary failures share one ninety-second deadline and never falsely report awake', async (context) => {
+  const attemptTimes = [];
+  const { elements, calls } = setup(context, async () => {
+    attemptTimes.push(Date.now());
+    throw new TypeError('Load failed');
+  });
+  elements.wake.click();
+  await settle();
+  for (let elapsed = 0; elapsed < 90000; elapsed += RECOVERY_DELAY) {
+    context.mock.timers.tick(RECOVERY_DELAY);
+    await settle();
+    assert.doesNotMatch(elements['wake-status'].textContent, /Service awake/);
+  }
+  assert.ok(calls.length > 1, 'transient failures should have been retried');
+  assert.ok(attemptTimes.every((time) => time < START_TIME + 90000), 'no attempt may start at or beyond the total deadline');
+  assert.match(elements['wake-status'].textContent, /Could not confirm/i);
+  assert.match(elements['wake-status'].textContent, /Open the service/i);
+  assert.match(elements['wake-status'].textContent, /retry/i);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Load failed/);
+  assert.equal(elements['wake-status'].classList.contains('error'), true);
+  assert.equal(elements.wake.disabled, false);
+  const finalCalls = calls.length;
+  context.mock.timers.tick(FOUR_MINUTES);
+  await settle();
+  assert.equal(calls.length, finalCalls, 'one-time wake retries end at the deadline');
+});
+
+test('a health body finishing after the total deadline cannot turn timeout into success', async (context) => {
+  const body = deferred();
+  const { elements, calls } = setup(context, async () => ({ ok: true, status: 200, json: () => body.promise }));
+  elements.wake.click();
+  await settle();
+  context.mock.timers.tick(90000);
+  assert.equal(calls[0].init.signal.aborted, true);
+  body.resolve({ status: 'ok' });
+  await settle();
+  assert.match(elements['wake-status'].textContent, /Could not confirm/i);
+  assert.doesNotMatch(elements['wake-status'].textContent, /Service awake/);
+  assert.equal(elements['wake-status'].classList.contains('error'), true);
+  assert.equal(elements.wake.disabled, false);
+  context.mock.timers.tick(FOUR_MINUTES);
+  await settle();
+  assert.equal(calls.length, 1);
+});
+
+test('stopping while waiting for recovery cancels retries without overwriting stopped status', async (context) => {
+  const { elements, calls } = setup(context, async () => { throw new TypeError('Load failed'); });
+  elements['awake-start'].click();
+  await settle();
+  assert.match(elements['wake-status'].textContent, /retrying/i);
+  elements['awake-stop'].click();
+  const stopped = elements['wake-status'].textContent;
+  assert.match(stopped, /Keep-awake stopped/);
+  assert.equal(calls[0].init.signal.aborted, true);
+  context.mock.timers.tick(FOUR_MINUTES * 2);
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.equal(elements['wake-status'].textContent, stopped);
+  assert.equal(elements['awake-start'].disabled, false);
+});
+
+test('pagehide cancels a one-time wake waiting for recovery and suppresses stale status', async (context) => {
+  const { elements, calls, window } = setup(context, async () => { throw new TypeError('Load failed'); });
+  elements.wake.click();
+  await settle();
+  window.dispatchEvent(new Event('pagehide'));
+  const closed = elements['wake-status'].textContent;
+  assert.match(closed, /page was closed/);
+  assert.equal(calls[0].init.signal.aborted, true);
+  context.mock.timers.tick(90000);
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.equal(elements['wake-status'].textContent, closed);
+});
+
+test('a session expires during a recovery wait instead of sending a late retry', async (context) => {
+  const { elements, calls } = setup(context, async (_call, index) => {
+    if (index === 1) return healthy();
+    throw new TypeError('Load failed');
   });
   elements['awake-start'].click();
   await settle();
-  assert.match(elements['wake-status'].textContent, /still starting/);
-  assert.equal(elements['wake-status'].classList.contains('error'), true);
-  assert.equal(elements['awake-stop'].disabled, false);
-  context.mock.timers.tick(FOUR_MINUTES);
+  context.mock.timers.setTime(START_TIME + ONE_HOUR - 1000);
+  elements.wake.click();
   await settle();
-  assert.match(elements['wake-status'].textContent, /network is unavailable/);
-  context.mock.timers.tick(FOUR_MINUTES);
+  assert.match(elements['wake-status'].textContent, /retrying/i);
+  context.mock.timers.tick(1000);
   await settle();
-  assert.match(elements['wake-status'].textContent, /still starting/);
-  context.mock.timers.tick(FOUR_MINUTES);
-  await settle();
-  assert.equal(calls.length, 4);
-  assert.match(elements['wake-status'].textContent, /Service awake/);
+  assert.match(elements['wake-status'].textContent, /session ended/);
   assert.equal(elements['wake-status'].classList.contains('error'), false);
+  assert.equal(elements['awake-start'].disabled, false);
+  context.mock.timers.tick(RECOVERY_DELAY * 2);
+  await settle();
+  assert.equal(calls.length, 2);
+});
+
+test('same-origin mode rejects a different service before fetching and permits the current host', async (context) => {
+  const { elements, calls } = setup(context, undefined, { sameOriginOnly: true });
+  elements['service-url'].value = 'https://different.example.test';
+  elements.wake.click();
+  await settle();
+  assert.equal(calls.length, 0);
+  assert.equal(elements['wake-status'].classList.contains('error'), true);
+  assert.equal(elements.wake.disabled, false);
+  elements['service-url'].value = 'https://television.example.test/';
+  elements.wake.click();
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.equal(new URL(calls[0].url).origin, 'https://television.example.test');
+  assert.match(elements['wake-status'].textContent, /Service awake/);
 });
 
 test('a timed-out request reports failure and an active session still schedules a retry', async (context) => {
@@ -276,7 +449,8 @@ test('a timed-out request reports failure and an active session still schedules 
   context.mock.timers.tick(90000);
   await settle();
   assert.equal(calls[0].init.signal.aborted, true);
-  assert.match(elements['wake-status'].textContent, /did not respond in time/);
+  assert.match(elements['wake-status'].textContent, /Could not confirm/i);
+  assert.match(elements['wake-status'].textContent, /Open the service/i);
   assert.equal(elements['wake-status'].classList.contains('error'), true);
   context.mock.timers.tick(FOUR_MINUTES);
   await settle();

@@ -116,7 +116,7 @@ export function createAddon(config, fetcher = fetchSource, now = Date.now,
       const {idPrefix,catalogPrefix} = profileSettings(profile);
       const types = config.sources.some(s => s.epgUrl) ? [TYPE,NATIVE_TYPE] : [TYPE];
       return {
-        id: `community.stremio.live-tv${profile === 'nfl' ? '.nfl' : ''}`, version: '1.2.0', name: `${config.name}${profile === 'nfl' ? ' — NFL' : ''}`,
+        id: `community.stremio.live-tv${profile === 'nfl' ? '.nfl' : ''}`, version: '1.2.1', name: `${config.name}${profile === 'nfl' ? ' — NFL' : ''}`,
         description: profile === 'nfl'
           ? 'Private NFL live channels, Game Pass, RedZone and Sunday Ticket in Discover. No VOD.'
           : 'Private live channels in Discover. Classic channel lists plus native programme guides when XMLTV is available.',

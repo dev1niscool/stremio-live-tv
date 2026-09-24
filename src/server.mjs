@@ -9,7 +9,7 @@ const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']], ['/configure', ['index.html','text/html; charset=utf-8']],
   ['/app.js', ['app.js','text/javascript; charset=utf-8']], ['/style.css',['style.css','text/css; charset=utf-8']],
   ['/importer.mjs',['importer.mjs','text/javascript; charset=utf-8']], ['/import-ui.mjs',['import-ui.mjs','text/javascript; charset=utf-8']], ['/awake.mjs',['awake.mjs','text/javascript; charset=utf-8']],
-  ['/icon.svg',['icon.svg','image/svg+xml']]
+  ['/icon.svg',['icon.svg','image/svg+xml']], ['/service-url.mjs',['service-url.mjs','text/javascript; charset=utf-8']]
 ]);
 const same = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
