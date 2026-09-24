@@ -86,7 +86,11 @@ document.querySelectorAll('[data-copy]').forEach(button => button.addEventListen
   try {
     await navigator.clipboard.writeText(input.value);
     const original = button.textContent; button.textContent = 'Copied';
-    setTimeout(() => { button.textContent = original; }, 2000);
+    setTimeout(() => {
+      button.textContent = input.id === 'manifest-url'
+        ? ($('#install-profile').value === 'nfl' && installUrls.nfl ? 'Copy NFL install URL' : 'Copy install URL')
+        : original;
+    }, 2000);
   } catch {
     input.type === 'password' && (input.type = 'text');
     input.focus(); input.select();
@@ -95,6 +99,21 @@ document.querySelectorAll('[data-copy]').forEach(button => button.addEventListen
 }));
 
 let checking = false;
+let installUrls = { all: '', nfl: '' };
+function renderInstallProfile() {
+  const selector = $('#install-profile');
+  const nfl = selector.value === 'nfl' && Boolean(installUrls.nfl);
+  if (!nfl) selector.value = 'all';
+  const url = nfl ? installUrls.nfl : installUrls.all;
+  $('#manifest-url').value = url;
+  $('#install-link').href = url ? url.replace(/^https?:\/\//, 'stremio://') : '#';
+  $('#install-link-label').textContent = nfl ? 'Install NFL only in Stremio' : 'Install in Stremio';
+  $('#copy-install-url').textContent = nfl ? 'Copy NFL install URL' : 'Copy install URL';
+  $('#install-profile-note').textContent = nfl
+    ? 'A separate NFL-only add-on using the same accounts and private key. Playlist checks below still show all live channels.'
+    : 'Install all live channels from your configured accounts.';
+}
+$('#install-profile').addEventListener('change', renderInstallProfile);
 function renderStatuses(sources) {
   const list = $('#status-list'); list.replaceChildren();
   for (const source of sources) {
@@ -122,6 +141,9 @@ async function checkPlaylists(refresh = false) {
   const key = accessKey;
   message('#connect-message', 'Connecting… This can take a moment after the host wakes up.');
   $('#install-output').hidden = true;
+  installUrls = { all: '', nfl: '' };
+  $('#manifest-url').value = '';
+  $('#install-link').href = '#';
   $('#playlist-status').hidden = true;
   const request = async (path, method = 'GET', timeout = 90000) => {
     const response = await fetch(path, {method, headers:{Authorization:`Bearer ${key}`}, signal:AbortSignal.timeout(timeout)});
@@ -134,8 +156,9 @@ async function checkPlaylists(refresh = false) {
     // cannot hide all results or force a 50-playlist request to exceed proxy timeouts.
     const data = await request(refresh ? '/api/refresh?summary=1' : '/api/status?summary=1', refresh ? 'POST' : 'GET');
     if (data.sources.length) {
-      $('#manifest-url').value = data.manifestUrl;
-      $('#install-link').href = data.manifestUrl.replace(/^https?:\/\//,'stremio://');
+      installUrls = { all: data.manifestUrl, nfl: typeof data.nflManifestUrl === 'string' ? data.nflManifestUrl : '' };
+      $('#install-profile').querySelector('[value="nfl"]').disabled = !installUrls.nfl;
+      renderInstallProfile();
       $('#install-output').hidden = false;
       $('#playlist-status').hidden = false;
       renderStatuses(data.sources);

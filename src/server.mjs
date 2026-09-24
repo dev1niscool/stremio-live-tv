@@ -44,22 +44,25 @@ export function createServer(config, addon = createAddon(config)) {
         const status = url.searchParams.get('summary') === '1'
           ? {sources:config.sources.map(s => ({id:s.id,name:s.name,state:'pending'}))}
           : await addon.status(url.searchParams.get('source'));
-        return json(200, {...status, manifestUrl:`${origin}/addon/${config.token}/manifest.json`});
+        return json(200, {...status, manifestUrl:`${origin}/addon/${config.token}/manifest.json`,
+          nflManifestUrl:`${origin}/addon/${config.token}/nfl/manifest.json`});
       }
       const match = path.match(/^\/addon\/([^/]+)\/(.+)$/);
       if (!match || !config.token || !same(match[1], config.token)) return json(404, {error:'Not found.'});
       if (req.method !== 'GET') return json(405, {error:'Method not allowed.'});
-      if (match[2] === 'configure') { res.writeHead(302, {Location:'/configure'}); res.end(); return; }
+      const profile = match[2].startsWith('nfl/') ? 'nfl' : 'full';
+      const resourcePath = profile === 'nfl' ? match[2].slice('nfl/'.length) : match[2];
+      if (resourcePath === 'configure') { res.writeHead(302, {Location:'/configure'}); res.end(); return; }
       if (!config.sources.length) return json(503, {error:'Add at least one playlist in the hosting environment settings.'});
-      if (match[2] === 'manifest.json') return json(200, addon.manifest(origin));
-      const resource = match[2].match(/^(catalog|meta|stream)\/([^/]+)\/([^/]+?)(?:\/([^/]+))?\.json$/);
+      if (resourcePath === 'manifest.json') return json(200, addon.manifest(origin,profile));
+      const resource = resourcePath.match(/^(catalog|meta|stream)\/([^/]+)\/([^/]+?)(?:\/([^/]+))?\.json$/);
       if (!resource) return json(404, {error:'Not found.'});
       const [, kind, encodedType, encodedId, encodedExtra] = resource;
       const type = decodeURIComponent(encodedType), id = decodeURIComponent(encodedId);
       if (![TYPE,NATIVE_TYPE].includes(type)) return json(200, kind === 'catalog' ? {metas:[]} : kind === 'stream' ? {streams:[]} : {meta:null});
       // URLSearchParams decodes each value exactly once; do not decode the entire extra segment.
       const extra = Object.fromEntries(new URLSearchParams(encodedExtra || ''));
-      const response = kind === 'catalog' ? await addon.catalog(id, extra, type) : await addon[kind](id,type);
+      const response = kind === 'catalog' ? await addon.catalog(id, extra, type, profile) : await addon[kind](id,type,profile);
       return json(200, {...response, cacheMaxAge:0, staleRevalidate:0, staleError:0});
     } catch (error) {
       // Upstream URLs and credentials must never appear in responses or logs.
