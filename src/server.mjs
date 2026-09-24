@@ -40,7 +40,10 @@ export function createServer(config, addon = createAddon(config)) {
         if (!config.token || !same(token, config.token)) return json(401, {error:'Access key is missing or incorrect.'});
         if ((path === '/api/status' && req.method !== 'GET') || (path === '/api/refresh' && req.method !== 'POST')) return json(405,{error:'Method not allowed.'});
         if (path === '/api/refresh') addon.refresh();
-        return json(200, {...await addon.status(), manifestUrl:`${origin}/addon/${config.token}/manifest.json`});
+        const status = url.searchParams.get('summary') === '1'
+          ? {sources:config.sources.map(s => ({id:s.id,name:s.name,state:'pending'}))}
+          : await addon.status(url.searchParams.get('source'));
+        return json(200, {...status, manifestUrl:`${origin}/addon/${config.token}/manifest.json`});
       }
       const match = path.match(/^\/addon\/([^/]+)\/(.+)$/);
       if (!match || !config.token || !same(match[1], config.token)) return json(404, {error:'Not found.'});

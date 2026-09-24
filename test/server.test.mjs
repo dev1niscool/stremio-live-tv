@@ -50,3 +50,13 @@ test('provider failures and malformed encodings do not expose sensitive details'
   assert.equal(response.status,502); assert.doesNotMatch(await response.text(),/provider\.example|secret/);
   assert.equal((await fetch(`${base}/addon/${token}/catalog/%ZZ/one.json`)).status,400);
 },{fail:true}));
+test('setup summary returns install metadata before fetching unavailable providers', async () => usingServer(async base => {
+  const headers = {Authorization:`Bearer ${token}`};
+  const summary = await (await fetch(base+'/api/status?summary=1',{headers})).json();
+  assert.deepEqual(summary.sources,[{id:'one',name:'Private provider',state:'pending'}]);
+  assert.ok(summary.manifestUrl.endsWith('/manifest.json'));
+  const source = await (await fetch(base+'/api/status?source=one',{headers})).json();
+  assert.equal(source.sources[0].state,'error');
+  const unknown = await (await fetch(base+'/api/status?source=missing',{headers})).json();
+  assert.deepEqual(unknown.sources,[]);
+},{fail:true}));

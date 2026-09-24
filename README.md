@@ -85,8 +85,10 @@ Open `http://localhost:7860`. Put the JSON on one line in `.env`, quoted with si
 npm test
 npm run check
 docker build -t stremio-live-tv .
-docker run --rm --env-file .env -p 7860:7860 stremio-live-tv
+docker run --rm --env-file .env.docker -p 7860:7860 stremio-live-tv
 ```
+
+For Docker, create an ignored `.env.docker` file with `KEY=value` lines. Keep `PLAYLISTS_JSON` on one line **without surrounding single or double quotes**: Docker preserves those quotes, whereas Node's `.env` parser removes them. Set `ADDON_TOKEN`, `PLAYLISTS_JSON`, and optionally `PUBLIC_URL` in that file. For a local container, leave `PORT` unset so the `7860:7860` mapping matches.
 
 The Dockerfile can run on another container host. Hugging Face is no longer the recommended free path: its current policy requires a paid plan to create Docker Spaces, despite CPU Basic having no hourly charge. Fly.io offers a limited trial rather than an ongoing free tier. [Hugging Face policy](https://huggingface.co/docs/hub/spaces-overview#creating-a-new-space) · [Fly.io policy](https://fly.io/docs/about/cost-management/).
 

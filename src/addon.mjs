@@ -93,11 +93,12 @@ export function createAddon(config, fetcher = source => fetchPlaylist(source, {i
         behaviorHints: {notWebReady: true, ...(Object.keys(c.headers || {}).length ? {proxyHeaders:{request:c.headers}} : {})}
       }]};
     },
-    async status() {
+    async status(sourceId) {
       // Limit concurrent provider requests, including on a large multi-playlist install.
       const results = [];
-      for (let i = 0; i < config.sources.length; i += 4) {
-        results.push(...await Promise.all(config.sources.slice(i, i + 4).map(async source => {
+      const sources = sourceId ? config.sources.filter(s => s.id === sourceId) : config.sources;
+      for (let i = 0; i < sources.length; i += 4) {
+        results.push(...await Promise.all(sources.slice(i, i + 4).map(async source => {
           try {
             const data = await load(source);
             return {id:source.id, name:source.name, state:'ready', stats:data.stats, updatedAt:new Date(data.loadedAt).toISOString()};
