@@ -1,5 +1,6 @@
 import { parsePlaylist } from './playlist.mjs';
 import { fetchPlaylist } from './fetch-playlist.mjs';
+import { fetchSource } from './fetch-source.mjs';
 import { parseXmltv, programmesForDay } from './epg.mjs';
 import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
@@ -8,7 +9,7 @@ export const TYPE = 'Live TV';
 export const NATIVE_TYPE = 'tv';
 export const PAGE_SIZE = 100;
 
-export function createAddon(config, fetcher = source => fetchPlaylist(source, {includeFinalUrl:true}), now = Date.now,
+export function createAddon(config, fetcher = fetchSource, now = Date.now,
   guideFetcher = source => fetchPlaylist(source, {asBuffer:true})) {
   const cache = new Map();
   const pending = new Map();
@@ -102,7 +103,7 @@ export function createAddon(config, fetcher = source => fetchPlaylist(source, {i
     manifest(origin) {
       const types = config.sources.some(s => s.epgUrl) ? [TYPE,NATIVE_TYPE] : [TYPE];
       return {
-        id: 'community.stremio.live-tv', version: '1.1.0', name: config.name,
+        id: 'community.stremio.live-tv', version: '1.1.1', name: config.name,
         description: 'Private live channels in Discover. Classic channel lists plus native programme guides when XMLTV is available.',
         logo: `${origin}/icon.svg`,
         types,

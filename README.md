@@ -72,6 +72,8 @@ Optional playlist request `headers` support `User-Agent`, `Referer`, `Authorizat
 
 To update a source, edit `PLAYLISTS_JSON` and redeploy, keeping `ADDON_TOKEN` unchanged. Adding/removing/renaming sources changes the manifest: reinstall the add-on if Stremio keeps the old list. Changing stream credentials does not require reinstalling when the source ID and key remain the same.
 
+For ordinary Xtream `get.php` account links, the service first requests `get_live_streams` and live category names. This avoids slow full M3U exports and never requests a VOD or series catalog. Only explicitly live records are accepted, and the usual VOD filters still apply. Unsupported API responses fall back to the original bounded M3U download; playlist URLs with extra selectors retain their original scope.
+
 ## Real programme guides, alongside the original channel lists
 
 The classic **Discover → Live TV** list remains available for every source. When a source has an XMLTV URL, the manifest additionally exposes a native `tv` catalog and marks the add-on as an EPG provider. Clients implementing Stremio's native TV guide can request daily schedules. Native guide availability and presentation depend on the client/version; use the classic list when your client does not support it.

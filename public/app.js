@@ -144,7 +144,7 @@ async function checkPlaylists(refresh = false) {
     for (let i = 0; i < data.sources.length; i += 2) {
       await Promise.all(data.sources.slice(i,i + 2).map(async source => {
         try {
-          const result = await request(`/api/status?source=${encodeURIComponent(source.id)}`, 'GET', 60000);
+          const result = await request(`/api/status?source=${encodeURIComponent(source.id)}`, 'GET', 90000);
           Object.assign(source,result.sources[0] || {state:'error',error:'This playlist no longer exists. Reload and try again.'});
         } catch { Object.assign(source,{state:'error',error:'This playlist could not be checked. Check the host and try again.'}); }
         checked++;
