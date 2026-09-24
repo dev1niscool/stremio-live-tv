@@ -1,40 +1,78 @@
+import {sourceFromUrl} from './importer.mjs';
+import {mountImport} from './import-ui.mjs';
+import {mountAwake} from './awake.mjs';
+
 const $ = selector => document.querySelector(selector);
 let sourceSequence = 0;
 let accessKey = '';
 const message = (id, text, error = false) => { $(id).textContent = text; $(id).classList.toggle('error', error); };
 
-function addSource() {
+function addSource(source) {
   if ($('#sources').children.length >= 50) return message('#setup-message', 'This service supports up to 50 playlists.', true);
   const row = $('#source-template').content.firstElementChild.cloneNode(true);
   row.dataset.id = `playlist-${++sourceSequence}`;
+  if (source) row.dataset.sourceId = source.id;
   row.querySelector('.source-number').textContent = `PLAYLIST ${String(sourceSequence).padStart(2, '0')}`;
   row.querySelector('.remove-source').addEventListener('click', () => {
     if ($('#sources').children.length === 1) return message('#setup-message', 'Keep at least one playlist.', true);
     row.remove(); invalidateOutput();
   });
   row.addEventListener('input', invalidateOutput);
+  const nameInput = row.querySelector('.source-name');
+  const urlInput = row.querySelector('.source-url');
+  const epgInput = row.querySelector('.source-epg');
+  nameInput.addEventListener('input',()=>{row.dataset.customName='yes';});
+  epgInput.addEventListener('input',()=>{row.dataset.customEpg='yes';});
+  urlInput.addEventListener('input',()=>{
+    const parsed = sourceFromUrl(urlInput.value.trim());
+    if (parsed) {
+      row.dataset.sourceId = parsed.id;
+      if (!row.dataset.customName) nameInput.value = parsed.name;
+      if (!row.dataset.customEpg) epgInput.value = parsed.epgUrl || '';
+    } else {
+      delete row.dataset.sourceId;
+      if (!row.dataset.customName) nameInput.value = '';
+      if (!row.dataset.customEpg) epgInput.value = '';
+    }
+  });
+  if (source) {nameInput.value=source.name;urlInput.value=source.url;epgInput.value=source.epgUrl || '';}
   $('#sources').append(row);
 }
 function invalidateOutput() { $('#settings-output').hidden = true; }
-$('#add-source').addEventListener('click', addSource);
+$('#add-source').addEventListener('click', () => addSource());
 addSource();
+mountAwake($('#service-awake'),{defaultUrl:location.origin});
+mountImport($('#playlist-import'),sources=>{
+  for (const row of [...$('#sources').children]) if (!row.querySelector('.source-url').value.trim() && !row.querySelector('.source-name').value.trim()) row.remove();
+  const ids = new Set([...$('#sources').children].map(row=>row.dataset.sourceId));
+  for (const source of sources) if (!ids.has(source.id)) { addSource(source); ids.add(source.id); }
+  invalidateOutput();
+  if (sources.length > 50) message('#setup-message','Only the first 50 playlists can be added. Split larger lists into separate services.',true);
+});
 
 $('#setup-form').addEventListener('submit', event => {
   event.preventDefault();
   try {
-    const names = new Set();
+    const ids = new Set();
     const sources = [...$('#sources').children].map((row, i) => {
-      const name = row.querySelector('.source-name').value.trim();
-      if (!name || names.has(name.toLowerCase())) throw new Error('Give every playlist a different name.');
-      names.add(name.toLowerCase());
       const raw = row.querySelector('.source-url').value.trim();
       let url;
       try { url = new URL(raw); } catch { throw new Error(`Playlist ${i + 1} needs a complete HTTP or HTTPS URL.`); }
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`Playlist ${i + 1} needs an HTTP or HTTPS URL.`);
+      const derived = sourceFromUrl(raw);
+      const name = row.querySelector('.source-name').value.trim() || derived?.name || url.searchParams.get('username') || url.hostname;
+      if (!name || name.length > 80) throw new Error(`Playlist ${i + 1} needs a title shorter than 81 characters.`);
       const lines = selector => row.querySelector(selector).value.split('\n').map(s => s.trim()).filter(Boolean);
-      // Stable name-based IDs remain the same when playlists are reordered or credentials change.
-      const id = 'source-' + [...name].reduce((h,c) => Math.imul(h ^ c.codePointAt(0),16777619) >>> 0,2166136261).toString(16);
-      return {id, name, url:raw, includeGroups:lines('.include-groups'), excludeGroups:lines('.exclude-groups')};
+      // Recognized account IDs survive reordering, renaming and password changes.
+      const id = derived?.id || row.dataset.sourceId || 'source-' + [...name].reduce((h,c) => Math.imul(h ^ c.codePointAt(0),16777619) >>> 0,2166136261).toString(16);
+      if (ids.has(id)) throw new Error(`Playlist ${i + 1} duplicates an account already listed.`);
+      ids.add(id);
+      let epgUrl = row.querySelector('.epg-enabled').checked ? row.querySelector('.source-epg').value.trim() || derived?.epgUrl || '' : false;
+      if (epgUrl) {
+        let epg; try {epg = new URL(epgUrl);} catch {throw new Error(`Playlist ${i + 1} needs a complete XMLTV URL.`);}
+        if (!['http:','https:'].includes(epg.protocol)) throw new Error(`Playlist ${i + 1} needs an HTTP or HTTPS XMLTV URL.`);
+      }
+      return {id, name, url:derived?.url || raw, epgUrl, includeGroups:lines('.include-groups'), excludeGroups:lines('.exclude-groups')};
     });
     $('#json-output').value = JSON.stringify(sources, null, 2);
     if (!$('#token-output').value) $('#token-output').value = [...crypto.getRandomValues(new Uint8Array(32))].map(x => x.toString(16).padStart(2,'0')).join('');
@@ -65,7 +103,9 @@ function renderStatuses(sources) {
     const detail = document.createElement('p');
     if (source.state === 'ready') {
       const s = source.stats;
-      detail.textContent = `${s.excludedVod} VOD excluded · ${s.excludedUnknown} unclassified excluded · ${s.excludedGroups} filtered by group`;
+      const guide = source.guide;
+      const guideLabel = !guide || guide.state === 'not_configured' ? 'Classic list only' : guide.state === 'ready' ? `${guide.programmes} programmes matched` : guide.state === 'empty' ? 'Guide has no matching programmes' : 'Guide unavailable; live playback still available';
+      detail.textContent = `${s.excludedVod} VOD excluded · ${s.excludedUnknown} unclassified excluded · ${s.excludedGroups} filtered by group · ${guideLabel}`;
       const count = document.createElement('span'); count.className = 'status-count'; count.textContent = `${s.accepted} live`;
       row.append(content, count);
     } else {

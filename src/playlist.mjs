@@ -196,6 +196,7 @@ export function parsePlaylist(text, source) {
     const hash = createHash('sha256').update(identity).digest('hex').slice(0, 24);
     channels.push({
       id: `iptv:${source.id}:${hash}`,
+      tvgId: clean(entry.attrs['tvg-id']),
       name: entry.name,
       group: entry.group || 'Ungrouped',
       logo: imageUrl(entry.attrs['tvg-logo'], source.url),

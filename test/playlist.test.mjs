@@ -14,7 +14,7 @@ test('parses BOM, CRLF, quoted commas, relative logos/streams and playback heade
   assert.equal(result.channels.length, 1);
   assert.match(result.channels[0].id, /^iptv:demo:[a-f0-9]{24}$/);
   assert.deepEqual({ ...result.channels[0], id: '' }, {
-    id: '', name: 'News, 24', group: 'News, Local',
+    id: '', name: 'News, 24', group: 'News, Local', tvgId: 'news.1',
     logo: 'https://example.test/logos/news.png',
     url: 'https://example.test/live/news.m3u8',
     headers: { 'User-Agent': 'Player 2', Referer: 'https://player.example.test/', Origin: 'https://player.example.test' },

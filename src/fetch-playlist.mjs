@@ -197,7 +197,7 @@ async function readBody(response, maxBytes, signal) {
   if (encoding !== 'identity') streams.push(decoders[encoding]());
   streams.push(collect);
   await pipeline(streams, { signal });
-  return Buffer.concat(chunks, decoded).toString('utf8');
+  return Buffer.concat(chunks, decoded);
 }
 
 /**
@@ -206,11 +206,11 @@ async function readBody(response, maxBytes, signal) {
  * this successful result contains a sensitive URL and must not be logged.
  */
 export async function fetchPlaylist(source, {
-  timeoutMs = 20000, maxBytes = 25 * 1024 * 1024, includeFinalUrl = false,
+  timeoutMs = 20000, maxBytes = 25 * 1024 * 1024, includeFinalUrl = false, asBuffer = false,
 } = {}) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2147483647
     || !Number.isSafeInteger(maxBytes) || maxBytes <= 0
-    || typeof includeFinalUrl !== 'boolean') throw fail('INVALID_SOURCE');
+    || typeof includeFinalUrl !== 'boolean' || typeof asBuffer !== 'boolean') throw fail('INVALID_SOURCE');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(fail('TIMEOUT')), timeoutMs);
   try {
@@ -236,7 +236,8 @@ export async function fetchPlaylist(source, {
         response.destroy();
         throw fail('HTTP_ERROR');
       }
-      const text = await readBody(response, maxBytes, controller.signal);
+      const body = await readBody(response, maxBytes, controller.signal);
+      const text = asBuffer ? body : body.toString('utf8');
       return includeFinalUrl ? { text, url: url.href } : text;
     }
   } catch (error) {

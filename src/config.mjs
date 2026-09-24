@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
 
+export function defaultGuideUrl(url) {
+  if (!/\/get\.php$/i.test(url.pathname) || !url.searchParams.get('username') || !url.searchParams.get('password')) return '';
+  const guide = new URL('xmltv.php',url);
+  guide.search = new URLSearchParams({username:url.searchParams.get('username'),password:url.searchParams.get('password')}).toString();
+  return guide.href;
+}
+
 export function readConfig(env = process.env) {
   let input;
   try { input = JSON.parse(env.PLAYLISTS_JSON || '[]'); }
@@ -9,11 +16,12 @@ export function readConfig(env = process.env) {
   const sources = input.map((item, i) => {
     const fail = (message) => { throw new Error(`Playlist ${i + 1}: ${message}`); };
     if (!item || typeof item !== 'object' || Array.isArray(item)) fail('expected an object.');
-    if (typeof item.name !== 'string' || !item.name.trim() || item.name.length > 80) fail('name must contain 1–80 characters.');
     let url;
     try { url = new URL(item.url); } catch { fail('enter a complete HTTP or HTTPS M3U URL.'); }
     if (!['http:', 'https:'].includes(url.protocol)) fail('only HTTP and HTTPS URLs are supported.');
-    const id = item.id || createHash('sha256').update(item.name.trim()).digest('hex').slice(0, 12);
+    const name = item.name ?? url.searchParams.get('username') ?? url.hostname;
+    if (typeof name !== 'string' || !name.trim() || name.length > 80) fail('name must contain 1–80 characters.');
+    const id = item.id || createHash('sha256').update(name.trim()).digest('hex').slice(0, 12);
     if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(id) || ids.has(id)) fail('id must be unique and use letters, numbers, dashes or underscores.');
     ids.add(id);
     const groups = (key) => {
@@ -23,7 +31,15 @@ export function readConfig(env = process.env) {
     };
     const headers = item.headers || {};
     if (typeof headers !== 'object' || Array.isArray(headers) || Object.entries(headers).some(([k,v]) => !['user-agent','referer','authorization','accept'].includes(k.toLowerCase()) || typeof v !== 'string' || /[\r\n]/.test(v))) fail('headers may only contain User-Agent, Referer, Authorization and Accept text values.');
-    return { id, name: item.name.trim(), url: url.href, includeGroups: groups('includeGroups'), excludeGroups: groups('excludeGroups'), headers };
+    if (item.epgUrl !== undefined && item.epgUrl !== false && typeof item.epgUrl !== 'string') fail('epgUrl must be an XMLTV URL string or false.');
+    let epgUrl = item.epgUrl === false ? '' : (item.epgUrl || defaultGuideUrl(url));
+    if (epgUrl) {
+      let guide;
+      try { guide = new URL(epgUrl); } catch { fail('epgUrl must be a complete XMLTV URL.'); }
+      if (!['http:', 'https:'].includes(guide.protocol)) fail('epgUrl must use HTTP or HTTPS.');
+      epgUrl = guide.href;
+    }
+    return { id, name: name.trim(), url: url.href, epgUrl, includeGroups: groups('includeGroups'), excludeGroups: groups('excludeGroups'), headers };
   });
   const token = env.ADDON_TOKEN || '';
   if (token && !/^[A-Za-z0-9_-]{32,256}$/.test(token)) throw new Error('ADDON_TOKEN must be 32–256 URL-safe characters.');

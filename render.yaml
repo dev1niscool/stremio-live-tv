@@ -4,7 +4,7 @@ services:
     name: stremio-live-tv
     runtime: node
     plan: free
-    buildCommand: node --check src/server.mjs
+    buildCommand: npm ci --ignore-scripts && node --check src/server.mjs
     startCommand: node src/server.mjs
     healthCheckPath: /health
     envVars:

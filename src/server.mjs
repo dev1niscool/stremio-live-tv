@@ -3,11 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readConfig } from './config.mjs';
-import { createAddon, TYPE } from './addon.mjs';
+import { createAddon, TYPE, NATIVE_TYPE } from './addon.mjs';
 
 const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']], ['/configure', ['index.html','text/html; charset=utf-8']],
   ['/app.js', ['app.js','text/javascript; charset=utf-8']], ['/style.css',['style.css','text/css; charset=utf-8']],
+  ['/importer.mjs',['importer.mjs','text/javascript; charset=utf-8']], ['/import-ui.mjs',['import-ui.mjs','text/javascript; charset=utf-8']], ['/awake.mjs',['awake.mjs','text/javascript; charset=utf-8']],
   ['/icon.svg',['icon.svg','image/svg+xml']]
 ]);
 const same = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -55,10 +56,10 @@ export function createServer(config, addon = createAddon(config)) {
       if (!resource) return json(404, {error:'Not found.'});
       const [, kind, encodedType, encodedId, encodedExtra] = resource;
       const type = decodeURIComponent(encodedType), id = decodeURIComponent(encodedId);
-      if (type !== TYPE) return json(200, kind === 'catalog' ? {metas:[]} : kind === 'stream' ? {streams:[]} : {meta:null});
+      if (![TYPE,NATIVE_TYPE].includes(type)) return json(200, kind === 'catalog' ? {metas:[]} : kind === 'stream' ? {streams:[]} : {meta:null});
       // URLSearchParams decodes each value exactly once; do not decode the entire extra segment.
       const extra = Object.fromEntries(new URLSearchParams(encodedExtra || ''));
-      const response = kind === 'catalog' ? await addon.catalog(id, extra) : await addon[kind](id);
+      const response = kind === 'catalog' ? await addon.catalog(id, extra, type) : await addon[kind](id,type);
       return json(200, {...response, cacheMaxAge:0, staleRevalidate:0, staleError:0});
     } catch (error) {
       // Upstream URLs and credentials must never appear in responses or logs.
