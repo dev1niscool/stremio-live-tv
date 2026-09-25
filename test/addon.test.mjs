@@ -123,6 +123,21 @@ test('unknown source IDs do not fetch any playlists', async () => {
   assert.equal(calls, 0);
 });
 
+test('verified Xtream live channels expose HLS and original TS through both addon profiles', async () => {
+  const url = 'https://provider.example.test/live/PRIVATE_NAME/PRIVATE_PASSWORD/123.ts';
+  const addon = createAddon(settings(), async () => playlist(entry('NFL Network', {url,group:'NFL'}),
+    entry('NFL Recording', {duration:300,url:'https://provider.example.test/movie/PRIVATE_NAME/PRIVATE_PASSWORD/124.mp4'})));
+  for (const profile of ['full','nfl']) {
+    const {metas} = await addon.catalog(profile === 'full' ? 'main' : 'nfl:main',{genre:'All channels'},TYPE,profile);
+    assert.equal(metas.length,1);
+    const {streams} = await addon.stream(metas[0].id,TYPE,profile);
+    assert.deepEqual(streams.map(s => s.url),[url.replace(/\.ts$/,'.m3u8'),url]);
+    assert.ok(streams.every(s => s.behaviorHints.notWebReady));
+    assert.match(streams[0].name,/HLS/);
+    assert.match(streams[1].name,/MPEG-TS/);
+  }
+});
+
 test('concurrent catalog and status requests share one fetch; TTL and refresh invalidate cached data', async () => {
   let now = 10000;
   let calls = 0;

@@ -146,6 +146,14 @@ The Dockerfile can run on another container host. Hugging Face is no longer the 
 - If no channels appear, check the excluded counts and configure exact live groups. If install fails immediately after idle, wake the Render URL, wait a minute, then retry. If a provider works locally but not on Render, it may restrict datacenter IPs.
 - If a native guide has no programmes, check its XMLTV URL and exact channel IDs. Seeing a live channel without a schedule does not mean playback is unavailable. Playlist and guide downloads each have a 20-second fetch timeout and a 25 MiB size limit; large provider-wide guides may need a smaller provider-supported feed.
 
+## Android TV playback
+
+Recognized Xtream live URLs now offer **HLS** first and **MPEG-TS** second. Try HLS on Android TV; the original TS option remains available. This does not transcode the video or change the provider’s codecs. Arbitrary playlist URLs are not rewritten. If a Sony/Android TV shows a blank screen, stop playback on other devices first (some accounts allow only one connection), try the other stream format, and try **MPV** in Stremio’s playback settings if available. Stremio added MPV to stable Android TV in [version 1.10.2](https://blog.stremio.com/stremio-tech-update-79-stremio-android-tv-android-mobile-updated/). Successful desktop playback does not establish TV codec or provider compatibility.
+
+## Automated use preference
+
+The repository includes [robots.txt](robots.txt) and an [automated-use policy](AUTOMATED-USE.md) requesting no crawling, scraping, model training or automated reuse without permission. The service serves `/robots.txt` and sends no-index headers. These are voluntary signals, not authentication. A project Pages path cannot set the origin-wide crawler policy for `github.io`; a repository file cannot control crawling of GitHub’s own domains. Keep private URLs out of public code and artifacts regardless of these signals.
+
 ## Publish your own guide
 
 The `docs/` directory is the GitHub Pages tutorial. After editing shared tools in `public/` or `docs/guide-style.css`, run `npm run sync-docs` to update its bundled scripts and styles; CI checks these copies. In your fork, enable **Settings → Pages → Source → GitHub Actions**, then run the **Publish guide** workflow. Update the repository URLs in the guide and setup page to point to your fork. Pages only hosts the guide; the add-on API must run on Render or another backend host.

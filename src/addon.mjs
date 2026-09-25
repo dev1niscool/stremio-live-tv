@@ -5,6 +5,7 @@ import { parseXmltv, programmesForDay } from './epg.mjs';
 import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { isNflChannel } from './nfl.mjs';
+import { streamChoices } from './streams.mjs';
 
 export const TYPE = 'Live TV';
 export const NATIVE_TYPE = 'tv';
@@ -116,7 +117,7 @@ export function createAddon(config, fetcher = fetchSource, now = Date.now,
       const {idPrefix,catalogPrefix} = profileSettings(profile);
       const types = config.sources.some(s => s.epgUrl) ? [TYPE,NATIVE_TYPE] : [TYPE];
       return {
-        id: `community.stremio.live-tv${profile === 'nfl' ? '.nfl' : ''}`, version: '1.2.1', name: `${config.name}${profile === 'nfl' ? ' — NFL' : ''}`,
+        id: `community.stremio.live-tv${profile === 'nfl' ? '.nfl' : ''}`, version: '1.3.0', name: `${config.name}${profile === 'nfl' ? ' — NFL' : ''}`,
         description: profile === 'nfl'
           ? 'Private NFL live channels, Game Pass, RedZone and Sunday Ticket in Discover. No VOD.'
           : 'Private live channels in Discover. Classic channel lists plus native programme guides when XMLTV is available.',
@@ -178,9 +179,8 @@ export function createAddon(config, fetcher = fetchSource, now = Date.now,
     async stream(id, type = TYPE, profile = 'full') {
       const c = await this.channel(id,profile);
       if (!c) return { streams: [] };
-      return {streams: [{name:profile === 'nfl' ? 'NFL' : 'Live TV', title:c.name, url:c.url,
-        behaviorHints: {notWebReady: true, ...(Object.keys(c.headers || {}).length ? {proxyHeaders:{request:c.headers}} : {})}
-      }]};
+      const source = config.sources.find(s => id.startsWith(`${profileSettings(profile).idPrefix}${s.id}:`));
+      return {streams:streamChoices(c,source,{name:profile === 'nfl' ? 'NFL' : 'Live TV'})};
     },
     async status(sourceId) {
       // Limit concurrent provider requests, including on a large multi-playlist install.

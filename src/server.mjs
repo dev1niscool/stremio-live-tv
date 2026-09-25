@@ -9,7 +9,8 @@ const staticFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']], ['/configure', ['index.html','text/html; charset=utf-8']],
   ['/app.js', ['app.js','text/javascript; charset=utf-8']], ['/style.css',['style.css','text/css; charset=utf-8']],
   ['/importer.mjs',['importer.mjs','text/javascript; charset=utf-8']], ['/import-ui.mjs',['import-ui.mjs','text/javascript; charset=utf-8']], ['/awake.mjs',['awake.mjs','text/javascript; charset=utf-8']],
-  ['/icon.svg',['icon.svg','image/svg+xml']], ['/service-url.mjs',['service-url.mjs','text/javascript; charset=utf-8']]
+  ['/icon.svg',['icon.svg','image/svg+xml']], ['/service-url.mjs',['service-url.mjs','text/javascript; charset=utf-8']],
+  ['/robots.txt',['robots.txt','text/plain; charset=utf-8']]
 ]);
 const same = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
@@ -21,6 +22,7 @@ export function createServer(config, addon = createAddon(config)) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'");
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }

@@ -1,0 +1,8 @@
+# Owner request: no automated crawling or scraping.
+# Do not use this project's content for AI systems, AI training, fine-tuning,
+# evaluation, model inputs, dataset creation, or other automated reuse without
+# prior permission from the repository owner.
+# This is an advisory request, not technical access control or an MIT change.
+# See AUTOMATED-USE.md for scope, permission requests, and hosting limitations.
+User-agent: *
+Disallow: /
